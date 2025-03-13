@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import * as SQLite from 'expo-sqlite';
+import React, { useState, useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import * as SQLite from "expo-sqlite";
 
 // Import screens
-import HomeScreen from './src/screens/homeScreen';
-import MovieDetailsScreen from './src/screens/movieDetailsScreen';
+import HomeScreen from "./src/screens/homeScreen";
+import MovieDetailsScreen from "./src/screens/movieDetailsScreen";
 //import SearchScreen from './src/screens/
 //import FavoritesScreen from './screens/FavoritesScreen';
 //import ProfileScreen from './screens/ProfileScreen';
-import LoginScreen from './src/screens/logginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
+import LoginScreen from "./src/screens/logginScreen";
+import RegisterScreen from "./src/screens/RegisterScreen";
 
 // Create an authentication context
-import { createContext } from 'react';
+import { createContext } from "react";
 export const AuthContext = createContext();
 
-import { initializeDatabase } from './database/database';
+import { initializeDatabase, getAllUsers } from "./database/database";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -30,24 +30,27 @@ const HomeStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: {
-        backgroundColor: '#1e1e1e',
+        backgroundColor: "#1e1e1e",
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTintColor: '#fff',
+      headerTintColor: "#fff",
       headerTitleStyle: {
-        fontWeight: 'bold',
+        fontWeight: "bold",
       },
-    }}>
-    <Stack.Screen 
-      name="Home" 
-      component={HomeScreen} 
-      options={{ title: 'CineApp' }}
+    }}
+  >
+    <Stack.Screen
+      name="Home"
+      component={HomeScreen}
+      options={{ title: "CineApp" }}
     />
-    <Stack.Screen 
-      name="MovieDetails" 
-      component={MovieDetailsScreen} 
-      options={({ route }) => ({ title: route.params?.title || 'Detalhes do Filme' })}
+    <Stack.Screen
+      name="MovieDetails"
+      component={MovieDetailsScreen}
+      options={({ route }) => ({
+        title: route.params?.title || "Detalhes do Filme",
+      })}
     />
   </Stack.Navigator>
 );
@@ -57,24 +60,27 @@ const SearchStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: {
-        backgroundColor: '#1e1e1e',
+        backgroundColor: "#1e1e1e",
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTintColor: '#fff',
+      headerTintColor: "#fff",
       headerTitleStyle: {
-        fontWeight: 'bold',
+        fontWeight: "bold",
       },
-    }}>
-    <Stack.Screen 
-      name="Search" 
-      component={SearchScreen} 
-      options={{ title: 'Pesquisar' }}
+    }}
+  >
+    <Stack.Screen
+      name="Search"
+      component={SearchScreen}
+      options={{ title: "Pesquisar" }}
     />
-    <Stack.Screen 
-      name="MovieDetails" 
-      component={MovieDetailsScreen} 
-      options={({ route }) => ({ title: route.params?.title || 'Detalhes do Filme' })}
+    <Stack.Screen
+      name="MovieDetails"
+      component={MovieDetailsScreen}
+      options={({ route }) => ({
+        title: route.params?.title || "Detalhes do Filme",
+      })}
     />
   </Stack.Navigator>
 );
@@ -84,24 +90,27 @@ const FavoritesStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: {
-        backgroundColor: '#1e1e1e',
+        backgroundColor: "#1e1e1e",
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTintColor: '#fff',
+      headerTintColor: "#fff",
       headerTitleStyle: {
-        fontWeight: 'bold',
+        fontWeight: "bold",
       },
-    }}>
-    <Stack.Screen 
-      name="Favorites" 
-      component={FavoritesScreen} 
-      options={{ title: 'Meus Favoritos' }}
+    }}
+  >
+    <Stack.Screen
+      name="Favorites"
+      component={FavoritesScreen}
+      options={{ title: "Meus Favoritos" }}
     />
-    <Stack.Screen 
-      name="MovieDetails" 
-      component={MovieDetailsScreen} 
-      options={({ route }) => ({ title: route.params?.title || 'Detalhes do Filme' })}
+    <Stack.Screen
+      name="MovieDetails"
+      component={MovieDetailsScreen}
+      options={({ route }) => ({
+        title: route.params?.title || "Detalhes do Filme",
+      })}
     />
   </Stack.Navigator>
 );
@@ -111,19 +120,20 @@ const ProfileStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: {
-        backgroundColor: '#1e1e1e',
+        backgroundColor: "#1e1e1e",
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTintColor: '#fff',
+      headerTintColor: "#fff",
       headerTitleStyle: {
-        fontWeight: 'bold',
+        fontWeight: "bold",
       },
-    }}>
-    <Stack.Screen 
-      name="Profile" 
-      component={ProfileScreen} 
-      options={{ title: 'Meu Perfil' }}
+    }}
+  >
+    <Stack.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{ title: "Meu Perfil" }}
     />
   </Stack.Navigator>
 );
@@ -133,24 +143,25 @@ const AuthStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: {
-        backgroundColor: '#1e1e1e',
+        backgroundColor: "#1e1e1e",
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTintColor: '#fff',
+      headerTintColor: "#fff",
       headerTitleStyle: {
-        fontWeight: 'bold',
+        fontWeight: "bold",
       },
-    }}>
-    <Stack.Screen 
-      name="Login" 
-      component={LoginScreen} 
+    }}
+  >
+    <Stack.Screen
+      name="Login"
+      component={LoginScreen}
       options={{ headerShown: false }}
     />
-    <Stack.Screen 
-      name="Register" 
-      component={RegisterScreen} 
-      options={{ title: 'Criar Conta' }}
+    <Stack.Screen
+      name="Register"
+      component={RegisterScreen}
+      options={{ title: "Criar Conta" }}
     />
   </Stack.Navigator>
 );
@@ -162,47 +173,48 @@ const TabNavigator = () => (
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
 
-        if (route.name === 'HomeStack') {
-          iconName = focused ? 'home' : 'home-outline';
-        } else if (route.name === 'SearchStack') {
-          iconName = focused ? 'search' : 'search-outline';
-        } else if (route.name === 'FavoritesStack') {
-          iconName = focused ? 'heart' : 'heart-outline';
-        } else if (route.name === 'ProfileStack') {
-          iconName = focused ? 'person' : 'person-outline';
+        if (route.name === "HomeStack") {
+          iconName = focused ? "home" : "home-outline";
+        } else if (route.name === "SearchStack") {
+          iconName = focused ? "search" : "search-outline";
+        } else if (route.name === "FavoritesStack") {
+          iconName = focused ? "heart" : "heart-outline";
+        } else if (route.name === "ProfileStack") {
+          iconName = focused ? "person" : "person-outline";
         }
 
         return <Ionicons name={iconName} size={size} color={color} />;
       },
-      tabBarActiveTintColor: '#1e90ff',
-      tabBarInactiveTintColor: '#888',
+      tabBarActiveTintColor: "#1e90ff",
+      tabBarInactiveTintColor: "#888",
       tabBarStyle: {
-        backgroundColor: '#1e1e1e',
-        borderTopColor: '#333',
+        backgroundColor: "#1e1e1e",
+        borderTopColor: "#333",
         paddingTop: 5,
         height: 60,
       },
       headerShown: false,
-    })}>
-    <Tab.Screen 
-      name="HomeStack" 
-      component={HomeStack} 
-      options={{ title: 'Início' }}
+    })}
+  >
+    <Tab.Screen
+      name="HomeStack"
+      component={HomeStack}
+      options={{ title: "Início" }}
     />
-    <Tab.Screen 
-      name="SearchStack" 
-      component={SearchStack} 
-      options={{ title: 'Buscar' }}
+    <Tab.Screen
+      name="SearchStack"
+      component={SearchStack}
+      options={{ title: "Buscar" }}
     />
-    <Tab.Screen 
-      name="FavoritesStack" 
-      component={FavoritesStack} 
-      options={{ title: 'Favoritos' }}
+    <Tab.Screen
+      name="FavoritesStack"
+      component={FavoritesStack}
+      options={{ title: "Favoritos" }}
     />
-    <Tab.Screen 
-      name="ProfileStack" 
-      component={ProfileStack} 
-      options={{ title: 'Perfil' }}
+    <Tab.Screen
+      name="ProfileStack"
+      component={ProfileStack}
+      options={{ title: "Perfil" }}
     />
   </Tab.Navigator>
 );
@@ -211,9 +223,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
   const [dbInitialized, setDbInitialized] = useState(false);
-  
+
   // Database connection
-  const db = SQLite.openDatabase('cineapp.db');
 
   // Auth context value
   const authContext = {
@@ -225,7 +236,7 @@ export default function App() {
     },
     signUp: async (token) => {
       setUserToken(token);
-    }
+    },
   };
 
   useEffect(() => {
@@ -235,42 +246,13 @@ export default function App() {
         await initializeDatabase();
         setDbInitialized(true);
       } catch (error) {
-        console.error('Erro ao inicializar banco de dados:', error);
-      }
-    };
-
-    // Check for stored user session
-    const checkUserSession = async () => {
-      try {
-        db.transaction(tx => {
-          tx.executeSql(
-            'SELECT * FROM user_session',
-            [],
-            (_, { rows }) => {
-              if (rows.length > 0) {
-                // User is logged in
-                const session = rows.item(0);
-                setUserToken(session.userId.toString());
-              }
-              setIsLoading(false);
-            },
-            (_, error) => {
-              console.error('Error checking user session:', error);
-              setIsLoading(false);
-              return false;
-            }
-          );
-        });
-      } catch (e) {
-        console.error('Error retrieving user session:', e);
-        setIsLoading(false);
+        console.error("Erro ao inicializar banco de dados:", error);
       }
     };
 
     setupDatabase().then(() => {
-      // Only check user session after DB is initialized
       if (dbInitialized) {
-        checkUserSession();
+        setIsLoading(false);
       }
     });
   }, [dbInitialized]);

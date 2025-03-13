@@ -1,125 +1,268 @@
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
 // Open or create the database
-const db = SQLite.openDatabase('cineapp.db');
+const openDatabaseAsync = async () => {
+  return await SQLite.openDatabaseAsync("cineapp.db");
+};
 
-// Initialize the database
-export const initializeDatabase = () => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      // Create movies table
-      tx.executeSql(
-        `CREATE TABLE IF NOT EXISTS movies (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT NOT NULL,
-          year INTEGER,
-          director TEXT,
-          genre TEXT,
-          poster TEXT,
-          rating REAL,
-          synopsis TEXT
-        )`,
-        [],
-        () => {},
-        (_, error) => { reject(error); return false; }
+async function createMoviesTable() {
+  try {
+    const db = await openDatabaseAsync();
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS movies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        year INTEGER,
+        director TEXT,
+        genre TEXT,
+        poster TEXT,
+        rating REAL,
+        synopsis TEXT
+      )`);
+    console.log("Movies table created or already exists");
+  } catch (error) {
+    console.error("Error creating movies table:", error);
+    throw new Error(`Failed to create movies table: ${error.message}`);
+  }
+}
+
+async function createFavoritesTable() {
+  try {
+    const db = await openDatabaseAsync();
+
+    await db.execAsync(
+      `CREATE TABLE IF NOT EXISTS favorites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        movieId INTEGER,
+        FOREIGN KEY (userId) REFERENCES users (id),
+        FOREIGN KEY (movieId) REFERENCES movies (id),
+        UNIQUE(userId, movieId)
+      )`
+    );
+    console.log("Favorites table created or already exists");
+  } catch (error) {
+    console.error("Error creating favorites table:", error);
+    throw new Error(`Failed to create favorites table: ${error.message}`);
+  }
+}
+
+async function createUsersTable() {
+  try {
+    const db = await openDatabaseAsync();
+
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      name TEXT,
+      createdAt TEXT
+    )`);
+    console.log("Users table created or already exists");
+  } catch (error) {
+    console.error("Error creating users table:", error);
+    throw new Error(`Failed to create users table: ${error.message}`);
+  }
+}
+
+async function createSessionsTable() {
+  try {
+    const db = await openDatabaseAsync();
+
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      deviceInfo TEXT,
+      ipAddress TEXT,
+      lastActive TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (userId) REFERENCES users (id)
+    )`);
+    console.log("Sessions table created or already exists");
+  } catch (error) {
+    console.error("Error creating sessions table:", error);
+    throw new Error(`Failed to create sessions table: ${error.message}`);
+  }
+}
+
+// Function to create a new session
+export async function createSession(
+  userId,
+  deviceInfo = null,
+  ipAddress = null
+) {
+  const db = await openDatabaseAsync();
+
+  const token = generateUniqueToken();
+
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setDate(expiresAt.getDate() + 30);
+
+  const createdAt = now.toISOString();
+  const expirationDate = expiresAt.toISOString();
+
+  await db.execAsync(
+    `INSERT INTO sessions (userId, token, deviceInfo, ipAddress, lastActive, expiresAt, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [userId, token, deviceInfo, ipAddress, createdAt, expirationDate, createdAt]
+  );
+
+  return token;
+}
+
+export async function validateSession(token) {
+  const db = await openDatabaseAsync();
+
+  const result = await db.execAsync(
+    `SELECT * FROM sessions WHERE token = ? AND expiresAt > datetime('now')`,
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await db.execAsync(`UPDATE sessions SET lastActive = ? WHERE token = ?`, [
+    now,
+    token,
+  ]);
+
+  return result.rows[0];
+}
+
+export async function endSession(token) {
+  const db = await openDatabaseAsync();
+
+  await db.execAsync(`DELETE FROM sessions WHERE token = ?`, [token]);
+}
+
+export async function clearExpiredSessions() {
+  const db = await openDatabaseAsync();
+
+  await db.execAsync(`DELETE FROM sessions WHERE expiresAt < datetime('now')`);
+}
+
+function generateUniqueToken() {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15) +
+    Date.now().toString(36)
+  );
+}
+
+async function seedDatabase(params) {
+  const initialMovies = [
+    {
+      title: "Interestelar",
+      year: 2014,
+      director: "Christopher Nolan",
+      genre: JSON.stringify(["Ficção Científica", "Drama", "Aventura"]),
+      poster: "https://exemplo.com/poster-interestelar.jpg",
+      rating: 8.6,
+      synopsis:
+        "Uma equipe de exploradores viaja através de um buraco de minhoca no espaço na tentativa de garantir a sobrevivência da humanidade.",
+    },
+    {
+      title: "Pulp Fiction",
+      year: 1994,
+      director: "Quentin Tarantino",
+      genre: JSON.stringify(["Crime", "Drama"]),
+      poster: "https://exemplo.com/poster-pulp-fiction.jpg",
+      rating: 8.9,
+      synopsis:
+        "As vidas de dois assassinos da máfia, um boxeador, um gângster e sua esposa, e um par de bandidos se entrelaçam em quatro histórias de violência e redenção.",
+    },
+    {
+      title: "O Poderoso Chefão",
+      year: 1972,
+      director: "Francis Ford Coppola",
+      genre: JSON.stringify(["Crime", "Drama"]),
+      poster: "https://exemplo.com/poster-poderoso-chefao.jpg",
+      rating: 9.2,
+      synopsis:
+        "A história da família Corleone sob o patriarca Vito Corleone, focando na transformação de seu filho Michael de relutante outsider da família para um implacável chefe da máfia.",
+    },
+  ];
+  await Promise.all(
+    initialMovies.map((movie) => {
+      db.execAsync(
+        `INSERT INTO movies (title, year, director, genre, poster, rating, synopsis) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          movie.title,
+          movie.year,
+          movie.director,
+          movie.genre,
+          movie.poster,
+          movie.rating,
+          movie.synopsis,
+        ]
       );
+    })
+  );
+}
+export const initializeDatabase = async () => {
+  try {
+    const db = await openDatabaseAsync();
 
-      // Create users table
-      tx.executeSql(
-        `CREATE TABLE IF NOT EXISTS users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          name TEXT,
-          createdAt TEXT
-        )`,
-        [],
-        () => {},
-        (_, error) => { reject(error); return false; }
-      );
+    console.log("Starting database initialization...");
 
-      // Create favorites table
-      tx.executeSql(
-        `CREATE TABLE IF NOT EXISTS favorites (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          userId INTEGER,
-          movieId INTEGER,
-          FOREIGN KEY (userId) REFERENCES users (id),
-          FOREIGN KEY (movieId) REFERENCES movies (id),
-          UNIQUE(userId, movieId)
-        )`,
-        [],
-        () => {},
-        (_, error) => { reject(error); return false; }
-      );
-
-      // Check if movies table is empty and insert initial data if needed
-      tx.executeSql(
-        `SELECT COUNT(*) as count FROM movies`,
-        [],
-        (_, { rows }) => {
-          if (rows.item(0).count === 0) {
-            // Insert initial movies data
-            const initialMovies = [
-              {
-                title: "Interestelar",
-                year: 2014,
-                director: "Christopher Nolan",
-                genre: JSON.stringify(["Ficção Científica", "Drama", "Aventura"]),
-                poster: "https://exemplo.com/poster-interestelar.jpg",
-                rating: 8.6,
-                synopsis: "Uma equipe de exploradores viaja através de um buraco de minhoca no espaço na tentativa de garantir a sobrevivência da humanidade."
-              },
-              {
-                title: "Pulp Fiction",
-                year: 1994,
-                director: "Quentin Tarantino",
-                genre: JSON.stringify(["Crime", "Drama"]),
-                poster: "https://exemplo.com/poster-pulp-fiction.jpg",
-                rating: 8.9,
-                synopsis: "As vidas de dois assassinos da máfia, um boxeador, um gângster e sua esposa, e um par de bandidos se entrelaçam em quatro histórias de violência e redenção."
-              },
-              {
-                title: "O Poderoso Chefão",
-                year: 1972,
-                director: "Francis Ford Coppola",
-                genre: JSON.stringify(["Crime", "Drama"]),
-                poster: "https://exemplo.com/poster-poderoso-chefao.jpg",
-                rating: 9.2,
-                synopsis: "A história da família Corleone sob o patriarca Vito Corleone, focando na transformação de seu filho Michael de relutante outsider da família para um implacável chefe da máfia."
-              }
-            ];
-
-            initialMovies.forEach(movie => {
-              tx.executeSql(
-                `INSERT INTO movies (title, year, director, genre, poster, rating, synopsis) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [movie.title, movie.year, movie.director, movie.genre, movie.poster, movie.rating, movie.synopsis],
-                () => {},
-                (_, error) => { console.error("Error inserting movie:", error); return false; }
-              );
-            });
-          }
-        },
-        (_, error) => { reject(error); return false; }
-      );
-    }, 
-    error => {
-      console.error("Transaction error:", error);
-      reject(error);
-    }, 
-    () => {
-      console.log("Database initialization successful");
-      resolve();
+    await db.withTransactionAsync(async () => {
+      try {
+        await createMoviesTable();
+        await createFavoritesTable();
+        await createUsersTable();
+        await createSessionsTable();
+        console.log("All tables created successfully");
+      } catch (error) {
+        console.error("Transaction failed during table creation:", error);
+        throw error; // This will cause the transaction to roll back
+      }
     });
-  });
+
+    console.log("Database initialization completed successfully");
+    return { success: true };
+  } catch (error) {
+    console.error("Database initialization failed:", error);
+    return {
+      success: false,
+      error: error.message,
+      details:
+        "There was an error initializing the database. Please restart the app or contact support.",
+    };
+  }
+};
+
+// Optional helper function to check database health
+export const checkDatabaseConnection = async () => {
+  try {
+    const db = await openDatabaseAsync();
+
+    const result = await db.execAsync("SELECT sqlite_version() AS version");
+    return {
+      success: true,
+      version: result.rows[0].version,
+      message: "Database connection successful",
+    };
+  } catch (error) {
+    console.error("Database connection check failed:", error);
+    return {
+      success: false,
+      error: error.message,
+      message: "Failed to connect to database",
+    };
+  }
 };
 
 // Functions for movie management
 export const getMovies = () => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM movies',
+        "SELECT * FROM movies",
         [],
         (_, { rows }) => {
           const movies = [];
@@ -127,13 +270,13 @@ export const getMovies = () => {
             const movie = rows.item(i);
             movies.push({
               ...movie,
-              genre: JSON.parse(movie.genre)
+              genre: JSON.parse(movie.genre),
             });
           }
           resolve(movies);
         },
         (_, error) => {
-          console.error('Error getting movies:', error);
+          console.error("Error getting movies:", error);
           reject(error);
           return false;
         }
@@ -144,23 +287,23 @@ export const getMovies = () => {
 
 export const getMovieById = (id) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM movies WHERE id = ?',
+        "SELECT * FROM movies WHERE id = ?",
         [id],
         (_, { rows }) => {
           if (rows.length > 0) {
             const movie = rows.item(0);
             resolve({
               ...movie,
-              genre: JSON.parse(movie.genre)
+              genre: JSON.parse(movie.genre),
             });
           } else {
             resolve(null);
           }
         },
         (_, error) => {
-          console.error('Error getting movie by ID:', error);
+          console.error("Error getting movie by ID:", error);
           reject(error);
           return false;
         }
@@ -169,18 +312,19 @@ export const getMovieById = (id) => {
   });
 };
 
-export const searchMovies = (query, genreFilter = '', yearFilter = '') => {
+export const searchMovies = (query, genreFilter = "", yearFilter = "") => {
   return new Promise((resolve, reject) => {
     const searchTerm = `%${query.toLowerCase()}%`;
-    let sql = 'SELECT * FROM movies WHERE (LOWER(title) LIKE ? OR LOWER(director) LIKE ?)';
+    let sql =
+      "SELECT * FROM movies WHERE (LOWER(title) LIKE ? OR LOWER(director) LIKE ?)";
     const params = [searchTerm, searchTerm];
-    
+
     if (yearFilter) {
-      sql += ' AND year = ?';
+      sql += " AND year = ?";
       params.push(yearFilter);
     }
-    
-    db.transaction(tx => {
+
+    db.transaction((tx) => {
       tx.executeSql(
         sql,
         params,
@@ -189,19 +333,24 @@ export const searchMovies = (query, genreFilter = '', yearFilter = '') => {
           for (let i = 0; i < rows.length; i++) {
             const movie = rows.item(i);
             const genreArray = JSON.parse(movie.genre);
-            
+
             // Handle genre filter separately (after fetching) because SQLite can't search inside JSON
-            if (!genreFilter || genreArray.some(g => g.toLowerCase() === genreFilter.toLowerCase())) {
+            if (
+              !genreFilter ||
+              genreArray.some(
+                (g) => g.toLowerCase() === genreFilter.toLowerCase()
+              )
+            ) {
               movies.push({
                 ...movie,
-                genre: genreArray
+                genre: genreArray,
               });
             }
           }
           resolve(movies);
         },
         (_, error) => {
-          console.error('Error searching movies:', error);
+          console.error("Error searching movies:", error);
           reject(error);
           return false;
         }
@@ -213,20 +362,28 @@ export const searchMovies = (query, genreFilter = '', yearFilter = '') => {
 export const addMovie = (movie) => {
   return new Promise((resolve, reject) => {
     const genreJson = JSON.stringify(movie.genre);
-    
-    db.transaction(tx => {
+
+    db.transaction((tx) => {
       tx.executeSql(
         `INSERT INTO movies (title, year, director, genre, poster, rating, synopsis) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [movie.title, movie.year, movie.director, genreJson, movie.poster, movie.rating, movie.synopsis],
+        [
+          movie.title,
+          movie.year,
+          movie.director,
+          genreJson,
+          movie.poster,
+          movie.rating,
+          movie.synopsis,
+        ],
         (_, { insertId }) => {
           resolve({
             ...movie,
-            id: insertId
+            id: insertId,
           });
         },
         (_, error) => {
-          console.error('Error adding movie:', error);
+          console.error("Error adding movie:", error);
           reject(error);
           return false;
         }
@@ -239,38 +396,46 @@ export const updateMovie = (id, updatedData) => {
   return new Promise((resolve, reject) => {
     // First, get the current movie to merge with updates
     getMovieById(id)
-      .then(currentMovie => {
+      .then((currentMovie) => {
         if (!currentMovie) {
-          reject(new Error('Movie not found'));
+          reject(new Error("Movie not found"));
           return;
         }
-        
+
         const mergedMovie = { ...currentMovie, ...updatedData };
         const genreJson = JSON.stringify(mergedMovie.genre);
-        
-        db.transaction(tx => {
+
+        db.transaction((tx) => {
           tx.executeSql(
             `UPDATE movies 
              SET title = ?, year = ?, director = ?, genre = ?, poster = ?, rating = ?, synopsis = ? 
              WHERE id = ?`,
-            [mergedMovie.title, mergedMovie.year, mergedMovie.director, genreJson, 
-             mergedMovie.poster, mergedMovie.rating, mergedMovie.synopsis, id],
+            [
+              mergedMovie.title,
+              mergedMovie.year,
+              mergedMovie.director,
+              genreJson,
+              mergedMovie.poster,
+              mergedMovie.rating,
+              mergedMovie.synopsis,
+              id,
+            ],
             (_, { rowsAffected }) => {
               if (rowsAffected > 0) {
                 resolve(mergedMovie);
               } else {
-                reject(new Error('No movie updated'));
+                reject(new Error("No movie updated"));
               }
             },
             (_, error) => {
-              console.error('Error updating movie:', error);
+              console.error("Error updating movie:", error);
               reject(error);
               return false;
             }
           );
         });
       })
-      .catch(error => {
+      .catch((error) => {
         reject(error);
       });
   });
@@ -278,27 +443,27 @@ export const updateMovie = (id, updatedData) => {
 
 export const deleteMovie = (id) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       // Delete from favorites first to maintain referential integrity
       tx.executeSql(
-        'DELETE FROM favorites WHERE movieId = ?',
+        "DELETE FROM favorites WHERE movieId = ?",
         [id],
         () => {},
         (_, error) => {
-          console.error('Error deleting movie favorites:', error);
+          console.error("Error deleting movie favorites:", error);
           return false;
         }
       );
 
       // Then delete the movie
       tx.executeSql(
-        'DELETE FROM movies WHERE id = ?',
+        "DELETE FROM movies WHERE id = ?",
         [id],
         (_, { rowsAffected }) => {
           resolve(rowsAffected > 0);
         },
         (_, error) => {
-          console.error('Error deleting movie:', error);
+          console.error("Error deleting movie:", error);
           reject(error);
           return false;
         }
@@ -307,128 +472,178 @@ export const deleteMovie = (id) => {
   });
 };
 
-// Functions for user management
-export const registerUser = (email, password, name) => {
-  return new Promise((resolve, reject) => {
+export const registerUser = async (email, password, name) => {
+  try {
+    const db = await openDatabaseAsync();
+
     const createdAt = new Date().toISOString();
-    
-    db.transaction(tx => {
-      // Check if email already exists
-      tx.executeSql(
-        'SELECT * FROM users WHERE email = ?',
-        [email],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            resolve({ success: false, message: 'Este email já está em uso' });
-          } else {
-            // Insert new user
-            tx.executeSql(
-              'INSERT INTO users (email, password, name, createdAt) VALUES (?, ?, ?, ?)',
-              [email, password, name, createdAt],
-              (_, { insertId }) => {
-                resolve({ 
-                  success: true, 
-                  user: { 
-                    id: insertId, 
-                    email, 
-                    name, 
-                    createdAt 
-                  } 
-                });
-              },
-              (_, error) => {
-                console.error('Error registering user:', error);
-                reject(error);
-                return false;
-              }
-            );
-          }
-        },
-        (_, error) => {
-          console.error('Error checking existing user:', error);
-          reject(error);
-          return false;
-        }
+
+    const existingUser = await db.execAsync(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (existingUser) {
+      if (existingUser.rows.length > 0)
+        return {
+          success: false,
+          message: "Este email já está em uso",
+        };
+    }
+
+    try {
+      const statement = await db.prepareAsync(
+        "INSERT INTO users (email, password, name, createdAt) VALUES ($email, $password, $name, $createdAt)"
       );
-    });
-  });
+      const result = await statement.executeAsync({
+        $email: email,
+        $password: password,
+        $name: name,
+        $createdAt: createdAt,
+      });
+
+      // const token = await createSession(result.insertId);
+
+      return {
+        success: true,
+        user: {
+          id: result.insertId,
+          email,
+          name,
+          createdAt,
+        },
+      };
+    } catch (insertError) {
+      if (
+        insertError.message &&
+        insertError.message.includes("UNIQUE constraint failed: users.email")
+      ) {
+        return {
+          success: false,
+          message: "Este email já está em uso",
+        };
+      }
+
+      throw insertError;
+    }
+  } catch (error) {
+    console.error("Error registering user:", error);
+
+    return {
+      success: false,
+      message: "Erro ao registrar usuário. Por favor, tente novamente.",
+      error: error.message,
+    };
+  }
 };
 
-export const loginUser = (email, password) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM users WHERE email = ? AND password = ?',
-        [email, password],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            const user = rows.item(0);
-            // Store current user in a separate user_session table
-            tx.executeSql(
-              'CREATE TABLE IF NOT EXISTS user_session (id INTEGER PRIMARY KEY, userId INTEGER, email TEXT, name TEXT)',
-              [],
-              () => {
-                tx.executeSql('DELETE FROM user_session', [], () => {
-                  tx.executeSql(
-                    'INSERT INTO user_session (userId, email, name) VALUES (?, ?, ?)',
-                    [user.id, user.email, user.name],
-                    () => {
-                      resolve({ 
-                        success: true, 
-                        user: { 
-                          id: user.id, 
-                          email: user.email, 
-                          name: user.name 
-                        } 
-                      });
-                    },
-                    (_, error) => {
-                      console.error('Error storing session:', error);
-                      reject(error);
-                      return false;
-                    }
-                  );
-                });
-              }
-            );
-          } else {
-            resolve({ success: false, message: 'Email ou senha incorretos' });
-          }
-        },
-        (_, error) => {
-          console.error('Error during login:', error);
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+export const loginUser = async (
+  email,
+  password,
+  deviceInfo = null,
+  ipAddress = null
+) => {
+  try {
+    const db = await openDatabaseAsync();
+
+    // Find user with matching email and password
+    const result = await db.getFirstAsync(
+      "SELECT * FROM users WHERE email = ? AND password = ?",
+      [email, password]
+    );
+    if (!result) {
+      return {
+        success: false,
+        message: "Email ou senha incorretos",
+      };
+    }
+
+    // Create a new session for the authenticated user
+    // const token = await createSession(user.id, deviceInfo, ipAddress);
+
+    return {
+      success: true,
+      user: {
+        id: result.id,
+        email: result.email,
+        name: result.name,
+      },
+    };
+  } catch (error) {
+    console.error("Error during login:", error);
+    throw error;
+  }
+};
+export const getAllUsers = async () => {
+  const db = await openDatabaseAsync();
+  const result = await db.getAllAsync("SELECT * FROM users");
+  console.log(result, "resultado");
+};
+// Optional: Add a method to check current authentication status
+export const checkAuthStatus = async (token) => {
+  try {
+    const session = await validateSession(token);
+
+    if (!session) {
+      return {
+        success: false,
+        message: "Sessão inválida ou expirada",
+      };
+    }
+
+    // Get user details
+    const result = await db.execAsync(
+      "SELECT id, email, name FROM users WHERE id = ?",
+      [session.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return {
+        success: false,
+        message: "Usuário não encontrado",
+      };
+    }
+
+    return {
+      success: true,
+      user: result.rows[0],
+    };
+  } catch (error) {
+    console.error("Error checking auth status:", error);
+    throw error;
+  }
 };
 
-export const logoutUser = () => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'DELETE FROM user_session',
-        [],
-        () => {
-          resolve({ success: true });
-        },
-        (_, error) => {
-          console.error('Error during logout:', error);
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+export const logoutUser = async (token) => {
+  try {
+    // End the specific session associated with this token
+    await endSession(token);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error during logout:", error);
+    throw error;
+  }
+};
+
+// Optional: Add a method to log out from all devices
+export const logoutFromAllDevices = async (userId) => {
+  try {
+    // Delete all sessions for this user
+    await db.execAsync("DELETE FROM sessions WHERE userId = ?", [userId]);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error during multi-device logout:", error);
+    throw error;
+  }
 };
 
 export const getCurrentUser = () => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM user_session',
+        "SELECT * FROM user_session",
         [],
         (_, { rows }) => {
           if (rows.length > 0) {
@@ -436,14 +651,14 @@ export const getCurrentUser = () => {
             resolve({
               id: session.userId,
               email: session.email,
-              name: session.name
+              name: session.name,
             });
           } else {
             resolve(null);
           }
         },
         (_, error) => {
-          console.error('Error getting current user:', error);
+          console.error("Error getting current user:", error);
           reject(error);
           return false;
         }
@@ -455,22 +670,22 @@ export const getCurrentUser = () => {
 // Functions for favorites management
 export const toggleFavorite = (userId, movieId) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       // Check if favorite already exists
       tx.executeSql(
-        'SELECT * FROM favorites WHERE userId = ? AND movieId = ?',
+        "SELECT * FROM favorites WHERE userId = ? AND movieId = ?",
         [userId, movieId],
         (_, { rows }) => {
           if (rows.length > 0) {
             // Remove favorite
             tx.executeSql(
-              'DELETE FROM favorites WHERE userId = ? AND movieId = ?',
+              "DELETE FROM favorites WHERE userId = ? AND movieId = ?",
               [userId, movieId],
               (_, { rowsAffected }) => {
                 resolve(rowsAffected > 0);
               },
               (_, error) => {
-                console.error('Error removing favorite:', error);
+                console.error("Error removing favorite:", error);
                 reject(error);
                 return false;
               }
@@ -478,13 +693,13 @@ export const toggleFavorite = (userId, movieId) => {
           } else {
             // Add favorite
             tx.executeSql(
-              'INSERT INTO favorites (userId, movieId) VALUES (?, ?)',
+              "INSERT INTO favorites (userId, movieId) VALUES (?, ?)",
               [userId, movieId],
               (_, { rowsAffected }) => {
                 resolve(rowsAffected > 0);
               },
               (_, error) => {
-                console.error('Error adding favorite:', error);
+                console.error("Error adding favorite:", error);
                 reject(error);
                 return false;
               }
@@ -492,7 +707,7 @@ export const toggleFavorite = (userId, movieId) => {
           }
         },
         (_, error) => {
-          console.error('Error checking favorite status:', error);
+          console.error("Error checking favorite status:", error);
           reject(error);
           return false;
         }
@@ -503,9 +718,9 @@ export const toggleFavorite = (userId, movieId) => {
 
 export const getFavorites = (userId) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
-        'SELECT movieId FROM favorites WHERE userId = ?',
+        "SELECT movieId FROM favorites WHERE userId = ?",
         [userId],
         (_, { rows }) => {
           const favoriteIds = [];
@@ -515,7 +730,7 @@ export const getFavorites = (userId) => {
           resolve(favoriteIds);
         },
         (_, error) => {
-          console.error('Error getting favorites:', error);
+          console.error("Error getting favorites:", error);
           reject(error);
           return false;
         }
@@ -526,15 +741,15 @@ export const getFavorites = (userId) => {
 
 export const isFavorite = (userId, movieId) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM favorites WHERE userId = ? AND movieId = ?',
+        "SELECT * FROM favorites WHERE userId = ? AND movieId = ?",
         [userId, movieId],
         (_, { rows }) => {
           resolve(rows.length > 0);
         },
         (_, error) => {
-          console.error('Error checking favorite status:', error);
+          console.error("Error checking favorite status:", error);
           reject(error);
           return false;
         }
@@ -545,7 +760,7 @@ export const isFavorite = (userId, movieId) => {
 
 export const getFavoriteMovies = (userId) => {
   return new Promise((resolve, reject) => {
-    db.transaction(tx => {
+    db.transaction((tx) => {
       tx.executeSql(
         `SELECT m.* 
          FROM movies m
@@ -558,13 +773,13 @@ export const getFavoriteMovies = (userId) => {
             const movie = rows.item(i);
             movies.push({
               ...movie,
-              genre: JSON.parse(movie.genre)
+              genre: JSON.parse(movie.genre),
             });
           }
           resolve(movies);
         },
         (_, error) => {
-          console.error('Error getting favorite movies:', error);
+          console.error("Error getting favorite movies:", error);
           reject(error);
           return false;
         }
