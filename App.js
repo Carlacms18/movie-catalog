@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-//import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SQLite from 'expo-sqlite';
 
 // Import screens
 import HomeScreen from './src/screens/homeScreen';
@@ -16,6 +16,9 @@ import MovieDetailsScreen from './src/screens/movieDetailsScreen';
 import LoginScreen from './src/screens/logginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 
+// Create an authentication context
+import { createContext } from 'react';
+export const AuthContext = createContext();
 
 import { initializeDatabase } from './database/database';
 
@@ -208,32 +211,20 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
   const [dbInitialized, setDbInitialized] = useState(false);
+  
+  // Database connection
+  const db = SQLite.openDatabase('cineapp.db');
 
   // Auth context value
   const authContext = {
     signIn: async (token) => {
-      try {
-        await AsyncStorage.setItem('userToken', token);
-        setUserToken(token);
-      } catch (e) {
-        console.error('Error saving token:', e);
-      }
+      setUserToken(token);
     },
     signOut: async () => {
-      try {
-        await AsyncStorage.removeItem('userToken');
-        setUserToken(null);
-      } catch (e) {
-        console.error('Error removing token:', e);
-      }
+      setUserToken(null);
     },
     signUp: async (token) => {
-      try {
-        await AsyncStorage.setItem('userToken', token);
-        setUserToken(token);
-      } catch (e) {
-        console.error('Error saving token:', e);
-      }
+      setUserToken(token);
     }
   };
 
@@ -248,20 +239,41 @@ export default function App() {
       }
     };
 
-    // Check for stored token
-    const bootstrapAsync = async () => {
+    // Check for stored user session
+    const checkUserSession = async () => {
       try {
-        const token = await AsyncStorage.getItem('userToken');
-        setUserToken(token);
+        db.transaction(tx => {
+          tx.executeSql(
+            'SELECT * FROM user_session',
+            [],
+            (_, { rows }) => {
+              if (rows.length > 0) {
+                // User is logged in
+                const session = rows.item(0);
+                setUserToken(session.userId.toString());
+              }
+              setIsLoading(false);
+            },
+            (_, error) => {
+              console.error('Error checking user session:', error);
+              setIsLoading(false);
+              return false;
+            }
+          );
+        });
       } catch (e) {
-        console.error('Error retrieving token:', e);
-      } finally {
+        console.error('Error retrieving user session:', e);
         setIsLoading(false);
       }
     };
 
-    setupDatabase().then(() => bootstrapAsync());
-  }, []);
+    setupDatabase().then(() => {
+      // Only check user session after DB is initialized
+      if (dbInitialized) {
+        checkUserSession();
+      }
+    });
+  }, [dbInitialized]);
 
   if (isLoading || !dbInitialized) {
     return null; // Or a splash screen component
