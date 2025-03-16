@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { getMovies, searchMovies, isFavorite, toggleFavorite, getCurrentUser } from '../../database/database';
+//import { getMovies, searchMovies, isFavorite, toggleFavorite, getCurrentUser } from '../../database/database';
+
 
 const HomeScreen = ({ navigation }) => {
   const [movies, setMovies] = useState([]);
