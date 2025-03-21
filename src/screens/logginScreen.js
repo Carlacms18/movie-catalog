@@ -1,20 +1,23 @@
 // screens/loginScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useContext  } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { loginUser, getCurrentUser } from '../../database/database'
+import { AuthContext } from '../../App'; // Import your AuthContext
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  const { signIn } = useContext(AuthContext);
+
   useEffect(() => {
     // Verificar se o usuário já está logado
     const checkUser = async () => {
       const user = await getCurrentUser();
       if (user) {
         // Se estiver logado, ir direto para a tela inicial
-        navigation.replace('Home');
+        signIn(user.token || 'user-token');
       }
     };
     
@@ -34,7 +37,8 @@ const LoginScreen = ({ navigation }) => {
       const result = await loginUser(email, password);
       
       if (result.success) {
-        navigation.replace('Home');
+        signIn(result.token || 'user-token'); // Use whatever token structure you have
+
       } else {
         Alert.alert('Erro', result.message || 'Erro ao fazer login');
       }

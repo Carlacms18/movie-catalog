@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-//import { getMovies, searchMovies, isFavorite, toggleFavorite, getCurrentUser } from '../../database/database';
-
+import { getMovies, searchMovies, isFavorite, toggleFavorite } from '../../database/database';
+import MovieCard from '../components/MovieCard';
 
 const HomeScreen = ({ navigation }) => {
   const [movies, setMovies] = useState([]);
@@ -41,9 +41,6 @@ const HomeScreen = ({ navigation }) => {
       const loadData = async () => {
         setLoading(true);
         try {
-          // Get current user
-          const user = await getCurrentUser();
-          setCurrentUser(user);
           
           // Get all movies
           const allMovies = await getMovies();
@@ -51,13 +48,7 @@ const HomeScreen = ({ navigation }) => {
           setFilteredMovies(allMovies);
           
           // Load user favorites
-          if (user) {
-            const userFavorites = {};
-            for (const movie of allMovies) {
-              userFavorites[movie.id] = await isFavorite(user.id, movie.id);
-            }
-            setFavorites(userFavorites);
-          }
+         
         } catch (error) {
           console.error('Error loading data:', error);
         } finally {

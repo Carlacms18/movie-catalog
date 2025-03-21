@@ -9,7 +9,6 @@ import * as SQLite from "expo-sqlite";
 
 // Import screens
 import HomeScreen from "./src/screens/homeScreen";
-import MovieDetailsScreen from "./src/screens/movieDetailsScreen";
 //import SearchScreen from './src/screens/
 //import FavoritesScreen from './screens/FavoritesScreen';
 //import ProfileScreen from './screens/ProfileScreen';
@@ -45,13 +44,7 @@ const HomeStack = () => (
       component={HomeScreen}
       options={{ title: "CineApp" }}
     />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={({ route }) => ({
-        title: route.params?.title || "Detalhes do Filme",
-      })}
-    />
+   
   </Stack.Navigator>
 );
 
@@ -75,13 +68,6 @@ const SearchStack = () => (
       component={SearchScreen}
       options={{ title: "Pesquisar" }}
     />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={({ route }) => ({
-        title: route.params?.title || "Detalhes do Filme",
-      })}
-    />
   </Stack.Navigator>
 );
 
@@ -104,13 +90,6 @@ const FavoritesStack = () => (
       name="Favorites"
       component={FavoritesScreen}
       options={{ title: "Meus Favoritos" }}
-    />
-    <Stack.Screen
-      name="MovieDetails"
-      component={MovieDetailsScreen}
-      options={({ route }) => ({
-        title: route.params?.title || "Detalhes do Filme",
-      })}
     />
   </Stack.Navigator>
 );

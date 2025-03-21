@@ -25,7 +25,92 @@ async function createMoviesTable() {
     throw new Error(`Failed to create movies table: ${error.message}`);
   }
 }
-
+export const seedMovies = async () => {
+  try {
+    const db = await openDatabaseAsync();
+    
+    // Check if movies already exist to avoid duplicates
+    const existingMovies = await db.getAllAsync("SELECT * FROM movies");
+    const count = existingMovies.length;
+    
+    if (count > 0) {
+      console.log("Movies already seeded, skipping...");
+      return;
+    }
+    
+    // Sample movie data
+    const movies = [
+      {
+        title: "The Shawshank Redemption",
+        year: 1994,
+        director: "Frank Darabont",
+        genre: JSON.stringify(["Drama"]),
+        poster: "https://m.media-amazon.com/images/M/MV5BNDE3ODcxYzMtY2YzZC00NmNlLWJiNDMtZDViZWM2MzIxZDYwXkEyXkFqcGdeQXVyNjAwNDUxODI@._V1_.jpg",
+        rating: 9.3,
+        synopsis: "Over the course of several years, two convicts form a friendship, seeking consolation and, eventually, redemption through basic compassion."
+      },
+      {
+        title: "The Godfather",
+        year: 1972,
+        director: "Francis Ford Coppola",
+        genre: JSON.stringify(["Crime", "Drama"]),
+        poster: "https://m.media-amazon.com/images/M/MV5BM2MyNjYxNmUtYTAwNi00MTYxLWJmNWYtYzZlODY3ZTk3OTFlXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
+        rating: 9.2,
+        synopsis: "The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son."
+      },
+      {
+        title: "Pulp Fiction",
+        year: 1994,
+        director: "Quentin Tarantino",
+        genre: JSON.stringify(["Crime", "Drama"]),
+        poster: "https://m.media-amazon.com/images/M/MV5BNGNhMDIzZTUtNTBlZi00MTRlLWFjM2ItYzViMjE3YzI5MjljXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_.jpg",
+        rating: 8.9,
+        synopsis: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption."
+      },
+      {
+        title: "Inception",
+        year: 2010,
+        director: "Christopher Nolan",
+        genre: JSON.stringify(["Action", "Adventure", "Sci-Fi"]),
+        poster: "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg",
+        rating: 8.8,
+        synopsis: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."
+      },
+      {
+        title: "Parasite",
+        year: 2019,
+        director: "Bong Joon Ho",
+        genre: JSON.stringify(["Drama", "Thriller"]),
+        poster: "https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_.jpg",
+        rating: 8.5,
+        synopsis: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan."
+      }
+    ];
+    
+    // Insert movies into the database
+    for (const movie of movies) {
+      console.log(movie)
+      await db.runAsync(
+        `INSERT INTO movies (title, year, director, genre, poster, rating, synopsis) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          movie.title,
+          movie.year,
+          movie.director,
+          movie.genre,
+          movie.poster,
+          movie.rating,
+          movie.synopsis
+        ]
+      );
+    }
+    
+    console.log("Successfully seeded 5 movies to the database");
+  } catch (error) {
+    console.error("Error seeding movies:", error);
+    throw new Error(`Failed to seed movies: ${error.message}`);
+  }
+};
 async function createFavoritesTable() {
   try {
     const db = await openDatabaseAsync();
@@ -217,6 +302,7 @@ export const initializeDatabase = async () => {
         await createUsersTable();
         await createSessionsTable();
         console.log("All tables created successfully");
+        await seedMovies();
       } catch (error) {
         console.error("Transaction failed during table creation:", error);
         throw error; // This will cause the transaction to roll back
@@ -258,31 +344,10 @@ export const checkDatabaseConnection = async () => {
 };
 
 // Functions for movie management
-export const getMovies = () => {
-  return new Promise((resolve, reject) => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "SELECT * FROM movies",
-        [],
-        (_, { rows }) => {
-          const movies = [];
-          for (let i = 0; i < rows.length; i++) {
-            const movie = rows.item(i);
-            movies.push({
-              ...movie,
-              genre: JSON.parse(movie.genre),
-            });
-          }
-          resolve(movies);
-        },
-        (_, error) => {
-          console.error("Error getting movies:", error);
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+export async function getMovies() {
+  const db = await openDatabaseAsync();
+  const movies = await db.getAllAsync( "SELECT * FROM movies");
+  return movies;
 };
 
 export const getMovieById = (id) => {
